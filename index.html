@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>SuperGrok 充值系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/public/css/mobile-fix.css?v=20260530003" rel="stylesheet">
+    <style>
+        :root {
+            --grok-bg: #F4F3EE;
+            --grok-primary: #1A1A1A;
+            --grok-primary-dark: #000000;
+            --grok-text: #15171A;
+            --grok-text-light: #6B6B70;
+            --grok-border: #DEDCD3;
+            --grok-card-bg: #FFFFFF;
+            --grok-success: #22C55E;
+            --grok-warning: #F59E0B;
+            --grok-danger: #EF4444;
+            --grok-surface: #F7F6F1;
+            --brand-accent: #1A1A1A;
+            --shadow-primary: rgba(26, 26, 26, 0.10);
+            --shadow-primary-strong: rgba(26, 26, 26, 0.22);
+            --brand-gradient: linear-gradient(135deg, #3A3A3A 0%, #1A1A1A 50%, #000000 100%);
+            --brand-gradient-soft: linear-gradient(135deg, #FAFAF7 0%, #EEEDE6 100%);
+        }
+
+        body {
+            background: radial-gradient(1000px 500px at 50% -200px, rgba(0, 0, 0, 0.05), transparent 70%), var(--grok-bg);
+            background-attachment: fixed; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            color: var(--grok-text); line-height: 1.6; -webkit-font-smoothing: antialiased;
+        }
+
+        .main-container { background: var(--grok-card-bg); border-radius: 24px; box-shadow: 0 4px 14px rgba(21, 23, 26, 0.06); padding: 3rem; margin: 2rem 0; max-width: 800px; border: 1px solid var(--grok-border); position: relative; overflow: hidden; }
+        .alert-sm { font-size: 0.875rem; border-radius: 12px; }
+
+        .steps-container { background: transparent; border-radius: 12px; padding: 1.25rem 0; margin-bottom: 2rem; }
+        .step-indicator { position: relative; }
+        .step-indicator::before { content: ''; position: absolute; top: 18px; left: 50%; width: 100%; height: 2px; background: var(--grok-border); z-index: 1; }
+        .step-indicator:last-child::before { display: none; }
+        .step-number { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.875rem; background: var(--grok-surface); border: 2px solid var(--grok-border); color: var(--grok-text-light); position: relative; z-index: 2; margin: 0 auto 0.5rem; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .step-number.active { background: var(--brand-gradient); color: white; border-color: var(--grok-primary); box-shadow: 0 4px 12px var(--shadow-primary-strong); transform: scale(1.06); }
+        .step-number.completed { background: var(--grok-success); color: white; border-color: var(--grok-success); }
+        .step-label { font-weight: 500; color: var(--grok-text-light); font-size: 0.75rem; }
+        .step-label.active { color: var(--grok-text); font-weight: 600; }
+
+        .step-card { border: 1px solid var(--grok-border); border-radius: 16px; background: var(--grok-card-bg); transition: all 0.2s ease; margin-bottom: 1.5rem; }
+        .step-card.active { border-color: var(--grok-primary); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); }
+        .card-header { border: none; padding: 1.5rem 1.75rem; font-weight: 600; background: transparent; color: var(--grok-text); }
+        .card-body { padding: 0 1.75rem 1.75rem; }
+
+        .form-control { border-radius: 12px; border: 1.5px solid var(--grok-border); padding: 0.875rem 1rem; background: var(--grok-surface); color: var(--grok-text); font-size: 1rem; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+        .form-control:focus { border-color: var(--grok-primary); box-shadow: 0 0 0 3px var(--shadow-primary); outline: none; }
+        .form-control-lg { padding: 1rem 1.25rem; font-size: 1.125rem; }
+        .form-label { font-weight: 500; color: var(--grok-text); margin-bottom: 0.5rem; font-size: 0.9375rem; }
+
+        /* ============ 更生动的按钮 ============ */
+        .btn { border-radius: 12px; font-weight: 600; padding: 0.875rem 1.75rem; border: none; font-size: 1rem; position: relative; overflow: hidden; isolation: isolate; transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease, filter 0.2s ease; }
+        .btn-lg { padding: 1.125rem 2rem; font-size: 1.0625rem; }
+
+        .btn-primary { background: var(--brand-gradient); background-size: 200% 200%; color: white; box-shadow: 0 6px 18px var(--shadow-primary-strong); }
+        .btn-primary:hover { color: white; transform: translateY(-2px); box-shadow: 0 12px 26px var(--shadow-primary-strong); filter: brightness(1.06); }
+        .btn-primary:active { transform: translateY(0) scale(0.985); }
+        .btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--shadow-primary), 0 8px 20px var(--shadow-primary-strong); }
+        /* 高光扫过 */
+        .btn-primary::after { content: ''; position: absolute; top: 0; left: -120%; width: 60%; height: 100%; z-index: -1; background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.28) 50%, transparent 100%); transform: skewX(-18deg); transition: left 0.6s ease; }
+        .btn-primary:hover::after { left: 130%; }
+        /* 主 CTA 呼吸 */
+        .btn-cta-pulse { animation: ctaPulse 2.6s ease-in-out infinite; }
+        @keyframes ctaPulse {
+            0%, 100% { box-shadow: 0 6px 18px var(--shadow-primary-strong); }
+            50% { box-shadow: 0 6px 18px var(--shadow-primary-strong), 0 0 0 6px rgba(26,26,26,0.06); }
+        }
+
+        .btn-outline-secondary { border: 1.5px solid var(--grok-border); color: var(--grok-text); background: transparent; transition: all 0.2s ease; }
+        .btn-outline-secondary:hover { background: var(--grok-surface); transform: translateY(-1px); }
+
+        /* 点击水波纹 */
+        .ripple { position: absolute; border-radius: 50%; transform: scale(0); background: rgba(255,255,255,0.45); animation: rippleAnim 0.6s linear; pointer-events: none; z-index: 0; }
+        @keyframes rippleAnim { to { transform: scale(4); opacity: 0; } }
+
+        /* 加载态 */
+        .btn.is-loading { pointer-events: none; }
+        .btn.is-loading .btn-label { opacity: 0; }
+        .btn.is-loading::before { content: ''; position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; border: 2.5px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: btnSpin 0.7s linear infinite; z-index: 2; }
+        @keyframes btnSpin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) {
+            .btn, .btn-primary::after, .btn-cta-pulse { transition: none !important; animation: none !important; }
+        }
+
+        .alert-success { background: #F0FDF4; border-color: #BBF7D0; color: #166534; }
+
+        /* ============ 实时库存组件 ============ */
+        .stock-card { margin-top: 1rem; padding: 0.85rem 1rem; background: var(--grok-card-bg); border: 1px solid var(--grok-border); border-radius: 14px; }
+        .stock-top { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+        .stock-live { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.72rem; font-weight: 700; color: var(--grok-text-light); letter-spacing: 0.02em; }
+        .stock-live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--grok-success); position: relative; }
+        .stock-live-dot::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--grok-success); opacity: 0; animation: stockPing 1.8s ease-out infinite; }
+        @keyframes stockPing { 0% { transform: scale(0.6); opacity: 0.6; } 80%, 100% { transform: scale(1.6); opacity: 0; } }
+        .stock-num { font-variant-numeric: tabular-nums; font-weight: 800; color: var(--grok-text); font-size: 1.05rem; }
+        .stock-num small { font-weight: 600; color: var(--grok-text-light); font-size: 0.72rem; }
+        .stock-bar { margin-top: 0.6rem; height: 8px; border-radius: 999px; background: var(--grok-surface); overflow: hidden; border: 1px solid var(--grok-border); }
+        .stock-bar-fill { height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg, #22C55E, #16A34A); transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+        .stock-card.is-low .stock-live-dot, .stock-card.is-low .stock-live-dot::after { background: var(--grok-warning); border-color: var(--grok-warning); }
+        .stock-card.is-low .stock-bar-fill { background: linear-gradient(90deg, #F59E0B, #D97706); }
+        .stock-card.is-out .stock-live-dot, .stock-card.is-out .stock-live-dot::after { background: var(--grok-danger); border-color: var(--grok-danger); }
+        .stock-card.is-out .stock-bar-fill { background: var(--grok-danger); }
+        .stock-card.is-loading-skeleton .stock-num { color: var(--grok-border); }
+        .stock-refresh { background: none; border: none; padding: 0.15rem; color: var(--grok-text-light); cursor: pointer; line-height: 1; border-radius: 6px; transition: transform 0.4s ease, color 0.2s ease; }
+        .stock-refresh:hover { color: var(--grok-text); }
+        .stock-refresh.spinning { animation: btnSpin 0.7s linear infinite; }
+
+        .site-nav-bar { position: fixed; top: 0.85rem; left: 0.85rem; z-index: 1000; display: flex; align-items: center; gap: 0.5rem; max-width: calc(100vw - 1.7rem); }
+        .site-nav { position: relative; display: inline-block; flex-shrink: 0; }
+        .site-nav[open] .site-nav-trigger-chevron { transform: rotate(180deg); }
+        .site-nav-trigger { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; background: #FFFFFF; border: 1px solid #E8E2D5; border-radius: 999px; padding: 0.45rem 0.85rem 0.45rem 0.5rem; color: #2B2118; font-weight: 600; font-size: 0.8125rem; line-height: 1; box-shadow: 0 2px 8px rgba(43, 33, 24, 0.06); }
+        .site-nav-trigger::-webkit-details-marker, .site-nav-trigger::marker { display: none; }
+        .site-nav-trigger-dot { width: 18px; height: 18px; border-radius: 50%; background: var(--brand-accent); }
+
+        .site-nav-menu { position: absolute; top: calc(100% + 0.5rem); left: 0; min-width: 280px; background: #FFFFFF; border: 1px solid #E8E2D5; border-radius: 16px; box-shadow: 0 4px 16px rgba(43, 33, 24, 0.08); padding: 0.4rem; display: flex; flex-direction: column; gap: 0.15rem; }
+        .site-nav-item { display: flex; align-items: center; gap: 0.7rem; padding: 0.55rem 0.65rem; border-radius: 10px; text-decoration: none; color: #2B2118; }
+        .site-nav-item:hover { background: #FAF6EC; }
+        .site-nav-item.active { background: #F0EFEB; cursor: default; }
+        .site-nav-item.active::after { content: ''; margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: var(--brand-accent); }
+        .site-nav-item-icon { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-weight: 800; }
+        .site-nav-icon-pro { background: linear-gradient(135deg, #E89B7F 0%, #CC785C 100%); }
+        .site-nav-icon-grok { background: linear-gradient(135deg, #2C2C2C 0%, #0A0A0A 100%); }
+        .site-nav-item-text { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; }
+        .site-nav-item-text b { font-weight: 600; font-size: 0.85rem; }
+        .site-nav-item-text em { font-style: normal; font-size: 0.7rem; color: #8B7355; }
+
+        .nav-hint { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.42rem 0.9rem 0.42rem 0.7rem; background: rgba(255, 255, 255, 0.78); backdrop-filter: blur(8px); border: 1.5px dashed var(--grok-border); border-radius: 999px; color: var(--brand-accent); font-size: 0.78rem; font-weight: 700; cursor: pointer; }
+
+        .grok-logo { display: inline-flex; align-items: center; gap: 0.625rem; font-size: 1.65rem; font-weight: 700; color: var(--grok-text); }
+        .grok-logo-icon { width: 38px; height: 38px; background: var(--brand-gradient); border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: white; font-weight: 800; }
+        .hero-card { position: relative; overflow: hidden; }
+        .brand-badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.75rem; border-radius: 999px; background: var(--grok-surface); font-size: 0.6875rem; font-weight: 700; border: 1px solid var(--grok-border); }
+        .brand-badge-dot { width: 6px; height: 6px; background: var(--grok-primary); border-radius: 50%; }
+        .price-tag { display: inline-flex; align-items: baseline; margin-top: 0.75rem; padding: 0.4rem 1rem; background: var(--grok-card-bg); border: 1px solid var(--grok-border); border-radius: 12px; }
+        .price-currency { color: var(--grok-text-light); font-size: 0.85rem; font-weight: 700; margin-right: 0.1em; }
+        .price-amount { font-size: 1.65rem; font-weight: 800; }
+        .price-period { color: var(--grok-text-light); font-size: 0.8rem; margin-left: 0.25em; }
+        .price-tag-meta { color: var(--grok-text-light); font-size: 0.7rem; margin-left: 0.75em; padding-left: 0.75em; border-left: 1px solid var(--grok-border); }
+
+        .lang-selector { position: fixed; top: 1rem; right: 1rem; z-index: 1000; }
+        .lang-selector .dropdown-toggle { background: var(--grok-card-bg); border: 1px solid var(--grok-border); border-radius: 8px; padding: 0.5rem 0.75rem; font-size: 0.875rem; cursor: pointer; }
+        .lang-selector .dropdown-menu { min-width: 120px; border-radius: 8px; border: 1px solid var(--grok-border); background: var(--grok-card-bg); }
+
+        .footer { text-align: center; padding: 2rem 0; color: var(--grok-text-light); font-size: 0.875rem; }
+        @media (max-width: 768px) { .main-container { margin: 0.75rem; padding: 1.5rem 1.25rem; border-radius: 16px; } }
+    </style>
+</head>
+<body>
+    <div class="site-nav-bar">
+        <span class="site-nav-trigger" style="cursor: default;">
+            <span class="site-nav-trigger-dot"></span>
+            <span>SuperGrok</span>
+        </span>
+    </div>
+
+    <div class="lang-selector dropdown">
+        <button class="dropdown-toggle" type="button" id="langSelectorBtn" data-bs-toggle="dropdown">中文</button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="langSelectorBtn">
+            <li><a class="dropdown-item" href="javascript:void(0)" onclick="setLanguage('zh'); return false;">中文</a></li>
+            <li><a class="dropdown-item" href="javascript:void(0)" onclick="setLanguage('en'); return false;">English</a></li>
+        </ul>
+    </div>
+
+    <div class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 col-md-10">
+                <div class="main-container">
+                    <div class="card step-card mb-3 hero-card" style="border: 1px solid var(--grok-border); background: var(--brand-gradient-soft);">
+                        <div class="card-body" style="padding: 1.5rem 1.25rem;">
+                            <div class="text-center mb-3">
+                                <div class="brand-badge">
+                                    <span class="brand-badge-dot"></span>
+                                    <span>GROK · SUPER</span>
+                                </div>
+                                <div class="grok-logo" style="justify-content: center; margin-top: 0.75rem;">
+                                    <div class="grok-logo-icon">G</div>
+                                    <span>SuperGrok</span>
+                                </div>
+                                <p style="color: var(--grok-text-light); font-size: 0.875rem; margin: 0.5rem 0 0;" data-i18n="heroSubtitle">xAI 官方订阅 · 一键充值 · 即时到账</p>
+                                <div class="price-tag" aria-label="月度价格">
+                                    <span class="price-currency">$</span><span class="price-amount">30</span><span class="price-period">/月</span>
+                                    <span class="price-tag-meta">Super</span>
+                                </div>
+                            </div>
+
+                            <!-- ===== 实时库存 ===== -->
+                            <div class="stock-card is-loading-skeleton" id="stockCard">
+                                <div class="stock-top">
+                                    <span class="stock-live">
+                                        <span class="stock-live-dot"></span>
+                                        <span data-i18n="stockLive">实时库存</span>
+                                    </span>
+                                    <span style="display:flex; align-items:center; gap:0.5rem;">
+                                        <span class="stock-num"><span id="stockAvail">—</span><small> / <span id="stockTotal">—</span></small></span>
+                                        <button class="stock-refresh" id="stockRefresh" type="button" aria-label="刷新库存" title="刷新">
+                                            <i class="bi bi-arrow-clockwise"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="stock-bar"><div class="stock-bar-fill" id="stockBar"></div></div>
+                            </div>
+
+                            <div class="row g-2 mb-3 trust-features" style="margin-top: 1rem;">
+                                <div class="col-4">
+                                    <div class="text-center" style="padding: 0.75rem 0.5rem; background: var(--grok-surface); border-radius: 8px; border: 1px solid var(--grok-border);">
+                                        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;"><i class="bi bi-shield-check"></i></div>
+                                        <div style="font-weight: 600; color: var(--grok-text); font-size: 0.8125rem;" data-i18n="officialChannel">官方渠道</div>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="text-center" style="padding: 0.75rem 0.5rem; background: var(--grok-surface); border-radius: 8px; border: 1px solid var(--grok-border);">
+                                        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;"><i class="bi bi-lightning-charge"></i></div>
+                                        <div style="font-weight: 600; color: var(--grok-text); font-size: 0.8125rem;" data-i18n="instantArrival">即时到账</div>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="text-center" style="padding: 0.75rem 0.5rem; background: var(--grok-surface); border-radius: 8px; border: 1px solid var(--grok-border);">
+                                        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;"><i class="bi bi-gem"></i></div>
+                                        <div style="font-weight: 600; color: var(--grok-text); font-size: 0.8125rem;" data-i18n="proService">专业服务</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--grok-border);">
+                                <div style="margin-bottom: 0.75rem;">
+                                    <div style="font-weight: 600; color: var(--grok-text); margin-bottom: 0.25rem; font-size: 0.8125rem;" data-i18n="faqHowTitle">如何充值？</div>
+                                    <div style="font-size: 0.75rem; color: var(--grok-text-light);">无需上号，只需 Grok 账号ID即可充值，官方正规渠道</div>
+                                </div>
+                                <div style="margin-bottom: 0.75rem;">
+                                    <div style="font-weight: 600; color: var(--grok-text); margin-bottom: 0.25rem; font-size: 0.8125rem;">如何获取 Grok 账号ID信息？</div>
+                                    <div style="font-size: 0.75rem; color: var(--grok-text-light);">
+                                        <span data-i18n="faqAccountDesc1">访问</span> <a href="https://grok.com/?_s=account" target="_blank" style="color: var(--grok-primary); text-decoration: underline;" data-i18n="faqAccountLink">grok.com 账号页面</a><span>，找到您的账户ID信息</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="steps-container">
+                        <div class="row">
+                            <div class="col-4 text-center step-indicator"><div class="step-number active" id="step1-indicator">1</div><div class="step-label" data-i18n="step1Label">激活卡密</div></div>
+                            <div class="col-4 text-center step-indicator"><div class="step-number" id="step2-indicator">2</div><div class="step-label" data-i18n="step2Label">绑定账号</div></div>
+                            <div class="col-4 text-center step-indicator"><div class="step-number" id="step3-indicator">3</div><div class="step-label" data-i18n="step3Label">开始充值</div></div>
+                        </div>
+                    </div>
+
+                    <div class="card step-card active" id="step1">
+                        <div class="card-header"><h5 class="mb-0" data-i18n="step1Title">步骤 1 · 验证您的充值码</h5></div>
+                        <div class="card-body">
+                            <form id="activateForm">
+                                <div class="mb-4">
+                                    <label for="cardCode" class="form-label" data-i18n="cardCodeLabel">充值码</label>
+                                    <input type="text" class="form-control form-control-lg" id="cardCode" placeholder="粘贴您购买的充值码" maxlength="64" required style="font-family: 'Courier New', monospace; letter-spacing: 1px;">
+                                    <div class="form-text mt-2" data-i18n="cardCodeHint">购买后会立即收到充值码</div>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-lg w-100"><span class="btn-label" data-i18n="verifyAndContinue">验证并继续</span></button>
+                            </form>
+                            <div id="step1-result" class="mt-3"></div>
+                        </div>
+                    </div>
+
+                    <div class="card step-card" id="step2" style="display: none;">
+                        <div class="card-header"><h5 class="mb-0" data-i18n="step2Title">步骤 2 · 绑定您的 Grok 账号</h5></div>
+                        <div class="card-body">
+                            <div class="alert alert-success mb-4">
+                                <div><strong data-i18n="cardVerified">充值码已验证</strong><div style="margin-top: 0.5rem; font-size: 0.875rem;"><span id="cardInfo"></span></div></div>
+                            </div>
+                            <form id="bindForm">
+                                <div class="mb-4">
+                                    <label for="claudeUserId" class="form-label" data-i18n="claudeIdLabel">Grok 用户 ID</label>
+                                    <input type="text" class="form-control form-control-lg" id="claudeUserId" placeholder="例如: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" required style="font-family: 'Courier New', monospace;">
+                                    <div class="form-text mt-2">
+                                        <span data-i18n="claudeIdHint1">在</span> <a href="https://grok.com/?_s=account" target="_blank" style="color: var(--grok-primary); text-decoration: underline;" data-i18n="claudeIdHintLink">grok.com 账号页面</a> <span data-i18n="claudeIdHint2">找到</span><br>
+                                        <span style="font-size: 0.8125rem; color: var(--grok-text-light);" data-i18n="claudeIdFormat">格式：8位-4位-4位-4位-12位</span>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-lg w-100"><span class="btn-label" data-i18n="confirmAndUpgrade">确认并升级</span></button>
+                            </form>
+                            <div id="step2-result" class="mt-3"></div>
+                        </div>
+                    </div>
+
+                    <div class="card step-card" id="step3" style="display: none;">
+                        <div class="card-header"><h5 class="mb-0" id="step3Title" data-i18n="step3Title">步骤 3 · 立即激活 SuperGrok 会员</h5></div>
+                        <div class="card-body">
+                            <button id="startRechargeBtn" class="btn btn-primary btn-lg w-100 btn-cta-pulse" style="font-weight: 600;">
+                                <span class="btn-label" id="startRechargeBtnText" data-i18n="activateProBtn">立即激活 SuperGrok</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card step-card" style="border: 1px solid var(--grok-border);">
+                        <div class="card-body" style="padding: 0;">
+                            <div style="padding: 0.75rem 1rem; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="toggleQuerySection()">
+                                <span style="color: var(--grok-text-light); font-size: 0.875rem;" data-i18n="queryCardStatus">查询卡密状态</span>
+                                <span id="queryToggleIcon" style="color: var(--grok-text-light); font-size: 0.75rem;">▼</span>
+                            </div>
+                            <div id="querySection" style="display: none; padding: 0 1rem 1rem 1rem; border-top: 1px solid var(--grok-border);">
+                                <div class="mb-2" style="margin-top: 1rem;">
+                                    <textarea id="queryCodesInput" class="form-control" rows="3" placeholder="输入卡密，一行一个..." style="font-family: monospace; font-size: 0.8125rem; border-radius: 0.5rem;"></textarea>
+                                </div>
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <button id="queryCardsBtn" class="btn btn-sm" onclick="queryCards()" style="background: var(--grok-primary); color: white; font-size: 0.8125rem;"><span class="btn-label">查询</span></button>
+                                </div>
+                                <div id="queryResultsContainer" style="display: none; margin-top: 0.75rem;">
+                                    <textarea id="queryResultsOutput" class="form-control" rows="4" readonly style="font-family: monospace; font-size: 0.8125rem; border-radius: 0.5rem; background: var(--grok-surface);"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p class="mb-1" style="font-weight: 500;" data-i18n="footerTitle">SuperGrok 充值服务</p>
+        <p class="mb-2" style="font-size: 0.8125rem;" data-i18n="footerSubtitle">官方渠道 · 安全可靠 · 即时到账</p>
+        <p class="mb-0" style="font-size: 0.75rem; color: var(--grok-text-light);">&copy; 2026 智链科技 (Zhilian Tech) All rights reserved.</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/public/js/lang.js?v=20260524006"></script>
+    <script>
+        // ===== 库存接口：仍走原 Cloudflare Worker（→ 6661231.xyz）=====
+        // 同域名部署时可改成 '' 走同源；本地 file:// 预览必须用完整 https 地址。
+        window.PROXY_BASE = window.PROXY_BASE || 'https://g.zlkjgptplus.org';
+        const API = {
+            stock:    window.PROXY_BASE + '/external/grok/redeem/stock',
+        };
+        const STOCK_URL = API.stock;
+
+        // ===== 卡密查询 / 验证 / 激活：走新后端平台 =====
+        // 抓包实际命中的接口域名是 codexapilink.com（jzvip6688.org 只是前端站点）。
+        window.NEW_API_BASE = window.NEW_API_BASE || 'https://codexapilink.com/gptchongqudao1';
+        const PRODUCT = 'grok';
+        const NEW_API = {
+            // 查询卡密 + 验证卡密 共用 action=query
+            query:  window.NEW_API_BASE + '/proxy.php?action=query',
+            // 激活/充值
+            redeem: window.NEW_API_BASE + '/proxy.php?action=redeem',
+        };
+
+        // 跨步骤保存的状态
+        const flow = { cdk: '', grokUserId: '', taskId: '' };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof initLanguage === 'function') initLanguage();
+            attachRipples();
+            initStock();
+            initActivationFlow();
+        });
+
+        function toggleQuerySection() {
+            const section = document.getElementById('querySection');
+            const icon = document.getElementById('queryToggleIcon');
+            section.style.display = section.style.display === 'none' ? 'block' : 'none';
+            icon.textContent = section.style.display === 'none' ? '▼' : '▲';
+        }
+
+        /* ---------- 通用：fetch JSON ---------- */
+        async function apiFetch(url, options) {
+            const res = await fetch(url, Object.assign({
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
+            }, options || {}));
+            let body = null;
+            try { body = await res.json(); } catch (e) { /* 非 JSON */ }
+            return { ok: res.ok, status: res.status, body };
+        }
+
+        /* ---------- 步骤指示器 / 卡片切换 ---------- */
+        function goToStep(n) {
+            for (let i = 1; i <= 3; i++) {
+                const card = document.getElementById('step' + i);
+                const ind  = document.getElementById('step' + i + '-indicator');
+                const label = ind ? ind.parentElement.querySelector('.step-label') : null;
+                if (card) card.style.display = (i === n) ? '' : 'none';
+                if (card) card.classList.toggle('active', i === n);
+                if (ind) {
+                    ind.classList.remove('active', 'completed');
+                    if (i < n) { ind.classList.add('completed'); ind.innerHTML = '<i class="bi bi-check-lg"></i>'; }
+                    else if (i === n) { ind.classList.add('active'); ind.textContent = i; }
+                    else { ind.textContent = i; }
+                }
+                if (label) label.classList.toggle('active', i === n);
+            }
+            const top = document.querySelector('.steps-container');
+            if (top) top.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function showMsg(elId, type, html) {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            const cls = type === 'error' ? 'alert-danger' : (type === 'success' ? 'alert-success' : 'alert-secondary');
+            el.innerHTML = '<div class="alert ' + cls + ' alert-sm mb-0">' + html + '</div>';
+        }
+        function clearMsg(elId) { const el = document.getElementById(elId); if (el) el.innerHTML = ''; }
+
+        /* ---------- 激活流程 ---------- */
+        function initActivationFlow() {
+            const actForm = document.getElementById('activateForm');
+            const bindForm = document.getElementById('bindForm');
+            const startBtn = document.getElementById('startRechargeBtn');
+
+            // 步骤1：验证卡密
+            if (actForm) actForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const btn = actForm.querySelector('button[type=submit]');
+                const cdk = document.getElementById('cardCode').value.trim();
+                clearMsg('step1-result');
+                if (!cdk) { showMsg('step1-result', 'error', '请输入充值码'); return; }
+
+                setBtnLoading(btn, true);
+                try {
+                    const r = await apiFetch(NEW_API.query, {
+                        method: 'POST',
+                        body: JSON.stringify({ code: cdk, product: PRODUCT })
+                    });
+                    const b = r.body || {};
+                    if (!r.ok || b.code !== 0) {
+                        showMsg('step1-result', 'error', '验证失败：' +
+                            (b.msg || b.message || b.error || ('错误码 ' + (b.code != null ? b.code : r.status))));
+                        return;
+                    }
+                    const d = b.data || {};
+                    // 已使用判断（status / use_status 为 1，或状态文案含“已使用”）
+                    const used = d.use_status === 1 || d.status === 1 ||
+                        (typeof d.status_text === 'string' && d.status_text.indexOf('已使用') >= 0);
+                    if (used) {
+                        const t = pickField(d, USE_TIME_KEYS);
+                        const u = pickField(d, USE_USER_KEYS);
+                        let extra = '';
+                        if (t) extra += '，使用时间：' + t;
+                        if (u) extra += '，用户：' + u;
+                        showMsg('step1-result', 'error',
+                            '该充值码已被使用（' + (d.status_text || '已使用') + '）' + extra + '，无法重复充值。');
+                        return;
+                    }
+
+                    // 通过 → 记录并进入步骤2
+                    flow.cdk = cdk;
+                    const infoEl = document.getElementById('cardInfo');
+                    if (infoEl) {
+                        const parts = [];
+                        if (d.status_text) parts.push('状态：' + d.status_text);
+                        if (d.plan_name || d.planType || d.sku) parts.push('套餐：' + (d.plan_name || d.planType || d.sku));
+                        if (d.duration_days || d.durationDays) parts.push('时长：' + (d.duration_days || d.durationDays) + ' 天');
+                        infoEl.textContent = parts.join(' · ') || ('充值码 ' + cdk.slice(0, 8) + '…');
+                    }
+                    goToStep(2);
+                } catch (err) {
+                    showMsg('step1-result', 'error', '网络错误：' + err.message);
+                } finally {
+                    setBtnLoading(btn, false);
+                }
+            });
+
+            // 步骤2：绑定账号 → 发起兑换
+            if (bindForm) bindForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const btn = bindForm.querySelector('button[type=submit]');
+                const uid = document.getElementById('claudeUserId').value.trim();
+                clearMsg('step2-result');
+                if (!uid) { showMsg('step2-result', 'error', '请输入 Grok 用户 ID'); return; }
+                // 基本 UUID 校验
+                if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid)) {
+                    showMsg('step2-result', 'error', 'ID 格式不正确，应为 8-4-4-4-12 的 UUID');
+                    return;
+                }
+
+                setBtnLoading(btn, true);
+                try {
+                    flow.grokUserId = uid;
+                    goToStep(3);
+                    // 进入步骤3后自动发起充值（新后端同步返回）
+                    runRedeem();
+                } finally {
+                    setBtnLoading(btn, false);
+                }
+            });
+
+            // 步骤3：手动触发（若用户重试）
+            if (startBtn) startBtn.addEventListener('click', runRedeem);
+        }
+
+        // 发起充值（新后端 action=redeem，同步返回结果）
+        async function runRedeem() {
+            const btn = document.getElementById('startRechargeBtn');
+            const wrap = document.getElementById('step3');
+            let resultEl = document.getElementById('step3-result');
+            if (!resultEl && wrap) {
+                resultEl = document.createElement('div');
+                resultEl.id = 'step3-result';
+                resultEl.className = 'mt-3';
+                wrap.querySelector('.card-body').appendChild(resultEl);
+            }
+            if (!flow.cdk || !flow.grokUserId) {
+                showMsg('step3-result', 'error', '缺少卡密或账号信息，请返回上一步重试');
+                return;
+            }
+            setBtnLoading(btn, true);
+            btn.classList.remove('btn-cta-pulse');
+
+            showMsg('step3-result', 'info', '<span class="spinner-border spinner-border-sm me-2"></span>正在为账号 ' +
+                flow.grokUserId.slice(0, 8) + '… 充值，请稍候…');
+
+            try {
+                const r = await apiFetch(NEW_API.redeem, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        code: flow.cdk,
+                        force: 0,
+                        grok_user_id: flow.grokUserId,
+                        product: PRODUCT,
+                        session_info: flow.grokUserId,
+                        target: flow.grokUserId
+                    })
+                });
+                const b = r.body || {};
+                if (r.ok && b.code === 0) {
+                    const d = b.data || {};
+                    flow.taskId = d.task_id || '';
+                    const detail = d.result || 'SuperGrok 会员已到账，可前往 grok.com 查看。';
+                    showMsg('step3-result', 'success',
+                        '<strong>✅ 充值成功！</strong><div style="margin-top:.4rem;font-size:.85rem;">' + detail + '</div>');
+                    document.getElementById('startRechargeBtnText').textContent = '充值完成';
+                    fetchStock();
+                } else {
+                    showMsg('step3-result', 'error', '❌ 充值失败：' +
+                        (b.msg || b.message || b.error || ('错误码 ' + (b.code != null ? b.code : r.status))) + '。请联系客服。');
+                }
+            } catch (err) {
+                showMsg('step3-result', 'error', '网络错误：' + err.message);
+            } finally {
+                setBtnLoading(btn, false);
+            }
+        }
+
+        /* ---------- 按钮水波纹 ---------- */
+        function attachRipples() {
+            document.addEventListener('click', function(e) {
+                const btn = e.target.closest('.btn');
+                if (!btn || btn.classList.contains('is-loading')) return;
+                const rect = btn.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                const r = document.createElement('span');
+                r.className = 'ripple';
+                r.style.width = r.style.height = size + 'px';
+                r.style.left = (e.clientX - rect.left - size / 2) + 'px';
+                r.style.top = (e.clientY - rect.top - size / 2) + 'px';
+                btn.appendChild(r);
+                setTimeout(() => r.remove(), 600);
+            });
+        }
+        window.setBtnLoading = function(btn, on) {
+            if (!btn) return;
+            btn.classList.toggle('is-loading', !!on);
+        };
+
+        /* ---------- 查询卡密状态 ---------- */
+        // 从对象里按候选字段名取第一个有值的
+        function pickField(obj, keys) {
+            for (let i = 0; i < keys.length; i++) {
+                const v = obj ? obj[keys[i]] : undefined;
+                if (v != null && v !== '') return v;
+            }
+            return '';
+        }
+        const USE_TIME_KEYS = ['use_time', 'used_at', 'used_time', 'bind_time', 'redeem_time', 'activated_at', 'activate_time', 'update_time', 'used_at_text'];
+        const USE_USER_KEYS = ['user_id', 'grok_user_id', 'target', 'account_id', 'use_user', 'used_user_id', 'bind_user_id', 'used_by'];
+
+        // 把一条查询响应格式化成展示文本
+        function formatCardStatus(code, r) {
+            const b = r.body || {};
+            // 非 0 / 无 data → 视为不存在或错误
+            if (!r.ok || b.code !== 0 || !b.data) {
+                return code + ': ⚠️ ' + (b.msg || b.message || b.error || '卡密不存在');
+            }
+            const d = b.data;
+            const label = d.code_plain || code;
+            const used = d.use_status === 1 || d.status === 1 ||
+                (typeof d.status_text === 'string' && d.status_text.indexOf('已使用') >= 0);
+            if (!used) {
+                return label + ': ✅ ' + (d.status_text || '未使用');
+            }
+            // 已使用：尽量带上使用时间和用户 ID
+            const t = pickField(d, USE_TIME_KEYS);
+            const u = pickField(d, USE_USER_KEYS);
+            let line = label + ': ❌ ' + (d.status_text || '已使用');
+            if (t) line += '（' + t + '）';
+            if (u) line += ' 用户: ' + u;
+            return line;
+        }
+
+        async function queryCards() {
+            const input = document.getElementById('queryCodesInput');
+            const out = document.getElementById('queryResultsOutput');
+            const container = document.getElementById('queryResultsContainer');
+            const btn = document.getElementById('queryCardsBtn');
+            const codes = input.value.split('\n').map(s => s.trim()).filter(Boolean);
+            if (!codes.length) { return; }
+            setBtnLoading(btn, true);
+            container.style.display = 'block';
+            out.value = '查询中…';
+            try {
+                const lines = [];
+                for (const code of codes) {
+                    try {
+                        const r = await apiFetch(NEW_API.query, {
+                            method: 'POST',
+                            body: JSON.stringify({ code: code, product: PRODUCT })
+                        });
+                        lines.push(formatCardStatus(code, r));
+                    } catch (e) {
+                        lines.push(code + ': ⚠️ 网络错误');
+                    }
+                }
+                out.value = lines.join('\n') || '未查询到结果';
+            } finally {
+                setBtnLoading(btn, false);
+            }
+        }
+
+        /* ---------- 实时库存 ---------- */
+        function renderStock(avail, total) {
+            const card = document.getElementById('stockCard');
+            const a = document.getElementById('stockAvail');
+            const t = document.getElementById('stockTotal');
+            const bar = document.getElementById('stockBar');
+            card.classList.remove('is-loading-skeleton', 'is-low', 'is-out');
+            a.textContent = avail;
+            t.textContent = total;
+            const pct = total > 0 ? Math.max(0, Math.min(100, (avail / total) * 100)) : 0;
+            bar.style.width = pct + '%';
+            if (avail <= 0) card.classList.add('is-out');
+            else if (pct <= 15) card.classList.add('is-low');
+        }
+
+        async function fetchStock() {
+            const btn = document.getElementById('stockRefresh');
+            const a = document.getElementById('stockAvail');
+            btn.classList.add('spinning');
+            try {
+                const res = await fetch(STOCK_URL, { headers: { 'Accept': 'application/json' } });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const json = await res.json();
+                const d = (json && json.data) ? json.data : {};
+                if (typeof d.available === 'number' && typeof d.total === 'number') {
+                    renderStock(d.available, d.total);
+                } else {
+                    throw new Error('返回格式异常');
+                }
+            } catch (err) {
+                console.warn('库存获取失败:', err, '请求地址:', STOCK_URL);
+                a.textContent = '获取失败';
+            } finally {
+                setTimeout(() => btn.classList.remove('spinning'), 500);
+            }
+        }
+
+        function initStock() {
+            document.getElementById('stockRefresh').addEventListener('click', fetchStock);
+            fetchStock();
+            // 每 30 秒自动刷新（页面隐藏时跳过）
+            setInterval(() => { if (!document.hidden) fetchStock(); }, 30000);
+        }
+    </script>
+</body>
+</html>
