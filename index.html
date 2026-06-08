@@ -289,9 +289,26 @@
                     <div class="card step-card" id="step3" style="display: none;">
                         <div class="card-header"><h5 class="mb-0" id="step3Title" data-i18n="step3Title">步骤 3 · 立即激活 SuperGrok 会员</h5></div>
                         <div class="card-body">
+                            <div class="alert alert-success mb-4">
+                                <strong>✓ 账号已绑定</strong>
+                                <div style="margin-top: 0.5rem; font-size: 0.875rem;">
+                                    <div>卡密: <span id="bindCdk" style="font-family: 'Courier New', monospace; word-break: break-all;"></span></div>
+                                    <div>用户ID: <span id="bindUid" style="font-family: 'Courier New', monospace; word-break: break-all;"></span></div>
+                                </div>
+                            </div>
+                            <div style="background: var(--grok-surface); border: 1px solid var(--grok-border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;">
+                                <div style="font-weight: 600; color: var(--grok-text); margin-bottom: 1rem;">您即将获得：</div>
+                                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                    <div style="display: flex; align-items: center; color: var(--grok-text);"><span style="color: var(--grok-success); margin-right: 0.5rem;">✓</span><span>SuperGrok 完整访问权限</span></div>
+                                    <div style="display: flex; align-items: center; color: var(--grok-text);"><span style="color: var(--grok-success); margin-right: 0.5rem;">✓</span><span>无限使用量和优先访问</span></div>
+                                    <div style="display: flex; align-items: center; color: var(--grok-text);"><span style="color: var(--grok-success); margin-right: 0.5rem;">✓</span><span>最新 AI 模型和高级功能</span></div>
+                                </div>
+                            </div>
                             <button id="startRechargeBtn" class="btn btn-primary btn-lg w-100 btn-cta-pulse" style="font-weight: 600;">
-                                <span class="btn-label" id="startRechargeBtnText" data-i18n="activateProBtn">立即激活 SuperGrok</span>
+                                <span class="btn-label" id="startRechargeBtnText" data-i18n="activateProBtn">🚀 立即激活 SuperGrok</span>
                             </button>
+                            <div style="text-align: center; margin-top: 1rem; font-size: 0.875rem; color: var(--grok-text-light);">预计 2-5 分钟完成</div>
+                            <div id="step3-result" class="mt-3"></div>
                         </div>
                     </div>
 
@@ -349,6 +366,7 @@
 
         // 跨步骤保存的状态
         const flow = { cdk: '', grokUserId: '', taskId: '' };
+        let rechargeDone = false;  // 充值成功后置 true：步骤3按钮变为“返回第一步·重新兑换”
 
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof initLanguage === 'function') initLanguage();
@@ -477,6 +495,8 @@
                 setBtnLoading(btn, true);
                 try {
                     flow.grokUserId = uid;
+                    const bc = document.getElementById('bindCdk'); if (bc) bc.textContent = flow.cdk;
+                    const bu = document.getElementById('bindUid'); if (bu) bu.textContent = uid;
                     goToStep(3);
                     // 进入步骤3后自动发起充值（新后端同步返回）
                     runRedeem();
@@ -485,8 +505,11 @@
                 }
             });
 
-            // 步骤3：手动触发（若用户重试）
-            if (startBtn) startBtn.addEventListener('click', runRedeem);
+            // 步骤3：成功后点击→返回第一步重新兑换；否则→（重试）发起充值
+            if (startBtn) startBtn.addEventListener('click', function () {
+                if (rechargeDone) resetFlow();
+                else runRedeem();
+            });
         }
 
         // 发起充值（新后端 action=redeem，同步返回结果）
@@ -529,7 +552,10 @@
                     const detail = d.result || 'SuperGrok 会员已到账，可前往 grok.com 查看。';
                     showMsg('step3-result', 'success',
                         '<strong>✅ 充值成功！</strong><div style="margin-top:.4rem;font-size:.85rem;">' + detail + '</div>');
-                    document.getElementById('startRechargeBtnText').textContent = '充值完成';
+                    rechargeDone = true;
+                    const btnText = document.getElementById('startRechargeBtnText');
+                    if (btnText) btnText.textContent = '🔄 返回首页 · 重新兑换';
+                    if (btn) btn.classList.add('btn-cta-pulse');
                     fetchStock();
                 } else {
                     showMsg('step3-result', 'error', '❌ 充值失败：' +
@@ -540,6 +566,25 @@
             } finally {
                 setBtnLoading(btn, false);
             }
+        }
+
+        /* ---------- 重置流程：返回第一步，重新兑换 ---------- */
+        function resetFlow() {
+            rechargeDone = false;
+            flow.cdk = ''; flow.grokUserId = ''; flow.taskId = '';
+            const cc = document.getElementById('cardCode'); if (cc) cc.value = '';
+            const ui = document.getElementById('claudeUserId'); if (ui) ui.value = '';
+            clearMsg('step1-result'); clearMsg('step2-result'); clearMsg('step3-result');
+            ['cardInfo', 'bindCdk', 'bindUid'].forEach(function (id) {
+                const el = document.getElementById(id); if (el) el.textContent = '';
+            });
+            // 恢复步骤3按钮原样
+            const btnText = document.getElementById('startRechargeBtnText');
+            if (btnText) btnText.textContent = '🚀 立即激活 SuperGrok';
+            const startBtn = document.getElementById('startRechargeBtn');
+            if (startBtn) { startBtn.classList.add('btn-cta-pulse'); setBtnLoading(startBtn, false); }
+            goToStep(1);
+            if (cc) { try { cc.focus(); } catch (e) {} }
         }
 
         /* ---------- 按钮水波纹 ---------- */
