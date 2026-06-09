@@ -149,7 +149,22 @@
         .lang-selector .dropdown-menu { min-width: 120px; border-radius: 8px; border: 1px solid var(--grok-border); background: var(--grok-card-bg); }
 
         .footer { text-align: center; padding: 2rem 0; color: var(--grok-text-light); font-size: 0.875rem; }
-        @media (max-width: 768px) { .main-container { margin: 0.75rem; padding: 1.5rem 1.25rem; border-radius: 16px; } }
+        @media (max-width: 768px) {
+            .main-container { margin: 0.75rem; padding: 1.5rem 1.25rem; border-radius: 16px; }
+            /* 顶部品牌/语言条改为随页面滚动，避免悬浮遮挡 hero 内容 */
+            body { padding-top: 3rem; }
+            .site-nav-bar { position: absolute; top: 0.6rem; left: 0.6rem; max-width: calc(100vw - 1.2rem); }
+            .lang-selector { position: absolute; top: 0.6rem; right: 0.6rem; }
+            /* 卡片留白收紧、标题不过大 */
+            .card-header { padding: 1.25rem 1.25rem 0.5rem; }
+            .card-body { padding: 0 1.25rem 1.25rem; }
+            .card-header h5 { font-size: 1.05rem; line-height: 1.45; }
+            /* 4 步指示器更紧凑，标签不挤 */
+            .steps-container { padding: 1rem 0; margin-bottom: 1.25rem; }
+            .step-number { width: 30px; height: 30px; font-size: 0.8rem; }
+            .step-indicator::before { top: 15px; }
+            .step-label { font-size: 0.66rem; margin-top: 0.15rem; }
+        }
     </style>
 </head>
 <body>
@@ -233,10 +248,8 @@
                                     <div style="font-size: 0.75rem; color: var(--grok-text-light);">无需上号，只需 Grok 账号ID即可充值，官方正规渠道</div>
                                 </div>
                                 <div style="margin-bottom: 0.75rem;">
-                                    <div style="font-weight: 600; color: var(--grok-text); margin-bottom: 0.25rem; font-size: 0.8125rem;">如何获取 Grok 账号ID信息？</div>
-                                    <div style="font-size: 0.75rem; color: var(--grok-text-light);">
-                                        <span data-i18n="faqAccountDesc1">访问</span> <a href="https://grok.com/?_s=account" target="_blank" style="color: var(--grok-primary); text-decoration: underline;" data-i18n="faqAccountLink">grok.com 账号页面</a><span>，找到您的账户ID信息</span>
-                                    </div>
+                                    <div style="font-weight: 600; color: var(--grok-text); margin-bottom: 0.25rem; font-size: 0.8125rem;">充值需要多久？</div>
+                                    <div style="font-size: 0.75rem; color: var(--grok-text-light);">通常 2-5 分钟即可完成，最长不超过 10 分钟。充值成功后约有 3 分钟左右延迟，耐心等待即可。</div>
                                 </div>
                             </div>
                         </div>
@@ -244,9 +257,10 @@
 
                     <div class="steps-container">
                         <div class="row">
-                            <div class="col-4 text-center step-indicator"><div class="step-number active" id="step1-indicator">1</div><div class="step-label" data-i18n="step1Label">激活卡密</div></div>
-                            <div class="col-4 text-center step-indicator"><div class="step-number" id="step2-indicator">2</div><div class="step-label" data-i18n="step2Label">绑定账号</div></div>
-                            <div class="col-4 text-center step-indicator"><div class="step-number" id="step3-indicator">3</div><div class="step-label" data-i18n="step3Label">开始充值</div></div>
+                            <div class="col-3 text-center step-indicator"><div class="step-number active" id="step1-indicator">1</div><div class="step-label">验证卡密</div></div>
+                            <div class="col-3 text-center step-indicator"><div class="step-number" id="step2-indicator">2</div><div class="step-label">登录账号</div></div>
+                            <div class="col-3 text-center step-indicator"><div class="step-number" id="step3-indicator">3</div><div class="step-label">绑定账号</div></div>
+                            <div class="col-3 text-center step-indicator"><div class="step-number" id="step4-indicator">4</div><div class="step-label">确认充值</div></div>
                         </div>
                     </div>
 
@@ -265,32 +279,57 @@
                         </div>
                     </div>
 
+                    <!-- 步骤 2：登录 Grok 账号 -->
                     <div class="card step-card" id="step2" style="display: none;">
-                        <div class="card-header"><h5 class="mb-0" data-i18n="step2Title">步骤 2 · 绑定您的 Grok 账号</h5></div>
+                        <div class="card-header"><h5 class="mb-0">步骤 2 · 登录您的 Grok 账号</h5></div>
                         <div class="card-body">
-                            <div class="alert alert-success mb-4">
-                                <div><strong data-i18n="cardVerified">充值码已验证</strong><div style="margin-top: 0.5rem; font-size: 0.875rem;"><span id="cardInfo"></span></div></div>
-                            </div>
-                            <form id="bindForm">
-                                <div class="mb-4">
-                                    <label for="claudeUserId" class="form-label" data-i18n="claudeIdLabel">Grok 用户 ID</label>
-                                    <input type="text" class="form-control form-control-lg" id="claudeUserId" placeholder="例如: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" required style="font-family: 'Courier New', monospace;">
-                                    <div class="form-text mt-2">
-                                        <span data-i18n="claudeIdHint1">在</span> <a href="https://grok.com/?_s=account" target="_blank" style="color: var(--grok-primary); text-decoration: underline;" data-i18n="claudeIdHintLink">grok.com 账号页面</a> <span data-i18n="claudeIdHint2">找到</span><br>
-                                        <span style="font-size: 0.8125rem; color: var(--grok-text-light);" data-i18n="claudeIdFormat">格式：8位-4位-4位-4位-12位</span>
+                            <button type="button" class="btn btn-outline-secondary btn-sm mb-3" onclick="goToStep(1)"><span class="btn-label">← 返回上一步</span></button>
+                            <div style="color: var(--grok-text-light); font-size: 0.9rem; margin-bottom: 1rem;">充值将绑定到您登录的账号，请确认是本人账号。</div>
+                            <div style="background: var(--grok-surface); border: 1px solid var(--grok-border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem;">
+                                <div style="display:flex; align-items:flex-start; gap:0.75rem;">
+                                    <div style="font-size:1.6rem; line-height:1;">🔑</div>
+                                    <div>
+                                        <div style="font-weight:600; color:var(--grok-text); margin-bottom:0.25rem;">请先登录 Grok 官网</div>
+                                        <div style="font-size:0.8125rem; color:var(--grok-text-light);">点击下方按钮前往官网完成登录。<strong>如您已登录，可直接跳过此步。</strong></div>
                                     </div>
                                 </div>
-                                <button type="submit" class="btn btn-primary btn-lg w-100"><span class="btn-label" data-i18n="confirmAndUpgrade">确认并升级</span></button>
-                            </form>
-                            <div id="step2-result" class="mt-3"></div>
+                                <div class="alert alert-warning alert-sm mt-3 mb-0" style="font-size:0.8rem;">
+                                    ⚠️ 重要提示：为防止串号，充值过程请务必在<strong>同一个浏览器</strong>内完成，切勿切换浏览器或使用隐私模式。
+                                </div>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-12 col-sm-6"><a href="https://grok.com/" target="_blank" rel="noopener" class="btn btn-outline-secondary w-100"><span class="btn-label">🌐 前往官网登录</span></a></div>
+                                <div class="col-12 col-sm-6"><button type="button" class="btn btn-primary w-100" onclick="goToStep(3)"><span class="btn-label">✓ 已登录，下一步</span></button></div>
+                            </div>
                         </div>
                     </div>
 
+                    <!-- 步骤 3：绑定账号（获取账号 ID） -->
                     <div class="card step-card" id="step3" style="display: none;">
-                        <div class="card-header"><h5 class="mb-0" id="step3Title" data-i18n="step3Title">步骤 3 · 立即激活 SuperGrok 会员</h5></div>
+                        <div class="card-header"><h5 class="mb-0">步骤 3 · 绑定账号（获取账号 ID）</h5></div>
                         <div class="card-body">
+                            <button type="button" class="btn btn-outline-secondary btn-sm mb-3" onclick="goToStep(2)"><span class="btn-label">← 返回上一步</span></button>
+                            <form id="bindForm">
+                                <div class="d-flex justify-content-between align-items-center mb-2" style="gap:0.5rem; flex-wrap:wrap;">
+                                    <label class="form-label mb-0" for="sessionJsonInput">账号会话信息</label>
+                                    <a href="https://grok.com/api/auth/session" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm"><span class="btn-label">🔗 点击获取账号 ID</span></a>
+                                </div>
+                                <div class="form-text mb-2">前往提取页面，全选(Ctrl+A)复制全部内容并粘贴到下方，系统会自动识别出您的账号 ID。</div>
+                                <textarea id="sessionJsonInput" class="form-control" rows="5" placeholder='粘贴形如 {"status":"authenticated","session":{"userId":"...."}} 的全部内容' style="font-family: monospace; font-size: 0.8125rem;"></textarea>
+                                <div id="extractedIdHint" class="form-text mt-2" style="display:none;"></div>
+                                <button type="submit" class="btn btn-primary btn-lg w-100 mt-3"><span class="btn-label">验证并继续 →</span></button>
+                            </form>
+                            <div id="step3-result" class="mt-3"></div>
+                        </div>
+                    </div>
+
+                    <!-- 步骤 4：确认充值 -->
+                    <div class="card step-card" id="step4" style="display: none;">
+                        <div class="card-header"><h5 class="mb-0" id="step4Title">步骤 4 · 确认充值</h5></div>
+                        <div class="card-body">
+                            <button type="button" class="btn btn-outline-secondary btn-sm mb-3" id="backToStep3Btn" onclick="goToStep(3)"><span class="btn-label">← 返回上一步</span></button>
                             <div class="alert alert-success mb-4">
-                                <strong>✓ 账号已绑定</strong>
+                                <strong>✓ 信息已确认</strong>
                                 <div style="margin-top: 0.5rem; font-size: 0.875rem;">
                                     <div>卡密: <span id="bindCdk" style="font-family: 'Courier New', monospace; word-break: break-all;"></span></div>
                                     <div>用户ID: <span id="bindUid" style="font-family: 'Courier New', monospace; word-break: break-all;"></span></div>
@@ -305,10 +344,10 @@
                                 </div>
                             </div>
                             <button id="startRechargeBtn" class="btn btn-primary btn-lg w-100 btn-cta-pulse" style="font-weight: 600;">
-                                <span class="btn-label" id="startRechargeBtnText" data-i18n="activateProBtn">🚀 立即激活 SuperGrok</span>
+                                <span class="btn-label" id="startRechargeBtnText">🚀 立即充值</span>
                             </button>
                             <div style="text-align: center; margin-top: 1rem; font-size: 0.875rem; color: var(--grok-text-light);">预计 2-5 分钟完成</div>
-                            <div id="step3-result" class="mt-3"></div>
+                            <div id="step4-result" class="mt-3"></div>
                         </div>
                     </div>
 
@@ -394,7 +433,7 @@
 
         /* ---------- 步骤指示器 / 卡片切换 ---------- */
         function goToStep(n) {
-            for (let i = 1; i <= 3; i++) {
+            for (let i = 1; i <= 4; i++) {
                 const card = document.getElementById('step' + i);
                 const ind  = document.getElementById('step' + i + '-indicator');
                 const label = ind ? ind.parentElement.querySelector('.step-label') : null;
@@ -461,16 +500,8 @@
                         return;
                     }
 
-                    // 通过 → 记录并进入步骤2
+                    // 通过 → 记录并进入步骤2（登录账号）
                     flow.cdk = cdk;
-                    const infoEl = document.getElementById('cardInfo');
-                    if (infoEl) {
-                        const parts = [];
-                        if (d.status_text) parts.push('状态：' + d.status_text);
-                        if (d.plan_name || d.planType || d.sku) parts.push('套餐：' + (d.plan_name || d.planType || d.sku));
-                        if (d.duration_days || d.durationDays) parts.push('时长：' + (d.duration_days || d.durationDays) + ' 天');
-                        infoEl.textContent = parts.join(' · ') || ('充值码 ' + cdk.slice(0, 8) + '…');
-                    }
                     goToStep(2);
                 } catch (err) {
                     showMsg('step1-result', 'error', '网络错误：' + err.message);
@@ -479,58 +510,69 @@
                 }
             });
 
-            // 步骤2：绑定账号 → 发起兑换
-            if (bindForm) bindForm.addEventListener('submit', async function(e) {
+            // 步骤3：从会话 JSON 中提取 userId → 进入步骤4确认（不在此发起充值）
+            if (bindForm) bindForm.addEventListener('submit', function(e) {
                 e.preventDefault();
-                const btn = bindForm.querySelector('button[type=submit]');
-                const uid = document.getElementById('claudeUserId').value.trim();
-                clearMsg('step2-result');
-                if (!uid) { showMsg('step2-result', 'error', '请输入 Grok 用户 ID'); return; }
-                // 基本 UUID 校验
-                if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid)) {
-                    showMsg('step2-result', 'error', 'ID 格式不正确，应为 8-4-4-4-12 的 UUID');
+                const raw = document.getElementById('sessionJsonInput').value.trim();
+                clearMsg('step3-result');
+                if (!raw) { showMsg('step3-result', 'error', '请先粘贴账号会话信息（或直接粘贴账号 ID）'); return; }
+                const uid = extractUserId(raw);
+                if (!uid) {
+                    showMsg('step3-result', 'error', '未能识别出账号 ID。请确认已粘贴 grok.com/api/auth/session 的完整内容，其中应包含 "userId"。');
                     return;
                 }
-
-                setBtnLoading(btn, true);
-                try {
-                    flow.grokUserId = uid;
-                    const bc = document.getElementById('bindCdk'); if (bc) bc.textContent = flow.cdk;
-                    const bu = document.getElementById('bindUid'); if (bu) bu.textContent = uid;
-                    goToStep(3);
-                    // 进入步骤3后自动发起充值（新后端同步返回）
-                    runRedeem();
-                } finally {
-                    setBtnLoading(btn, false);
-                }
+                flow.grokUserId = uid;
+                // 填充第四步确认信息
+                const bc = document.getElementById('bindCdk'); if (bc) bc.textContent = flow.cdk;
+                const bu = document.getElementById('bindUid'); if (bu) bu.textContent = uid;
+                goToStep(4);
             });
 
-            // 步骤3：成功后点击→返回第一步重新兑换；否则→（重试）发起充值
+            // 实时识别提示
+            const sess = document.getElementById('sessionJsonInput');
+            if (sess) sess.addEventListener('input', function () {
+                const hint = document.getElementById('extractedIdHint');
+                if (!hint) return;
+                const uid = extractUserId(sess.value);
+                if (uid) { hint.style.display = ''; hint.innerHTML = '✅ 已识别账号 ID：<code>' + uid + '</code>'; }
+                else { hint.style.display = 'none'; hint.textContent = ''; }
+            });
+
+            // 步骤4：成功后点击→返回第一步重新兑换；否则→（重试）发起充值
             if (startBtn) startBtn.addEventListener('click', function () {
                 if (rechargeDone) resetFlow();
                 else runRedeem();
             });
         }
 
+        /* 从 auth/session 文本中提取 8-4-4-4-12 的 userId */
+        function extractUserId(text) {
+            if (!text) return '';
+            let m = text.match(/"userId"\s*:\s*"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})"/);
+            if (m) return m[1];
+            m = text.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+            return m ? m[0] : '';
+        }
+
         // 发起充值（新后端 action=redeem，同步返回结果）
         async function runRedeem() {
             const btn = document.getElementById('startRechargeBtn');
-            const wrap = document.getElementById('step3');
-            let resultEl = document.getElementById('step3-result');
+            const wrap = document.getElementById('step4');
+            let resultEl = document.getElementById('step4-result');
             if (!resultEl && wrap) {
                 resultEl = document.createElement('div');
-                resultEl.id = 'step3-result';
+                resultEl.id = 'step4-result';
                 resultEl.className = 'mt-3';
                 wrap.querySelector('.card-body').appendChild(resultEl);
             }
             if (!flow.cdk || !flow.grokUserId) {
-                showMsg('step3-result', 'error', '缺少卡密或账号信息，请返回上一步重试');
+                showMsg('step4-result', 'error', '缺少卡密或账号信息，请返回上一步重试');
                 return;
             }
             setBtnLoading(btn, true);
             btn.classList.remove('btn-cta-pulse');
 
-            showMsg('step3-result', 'info', '<span class="spinner-border spinner-border-sm me-2"></span>正在为账号 ' +
+            showMsg('step4-result', 'info', '<span class="spinner-border spinner-border-sm me-2"></span>正在为账号 ' +
                 flow.grokUserId.slice(0, 8) + '… 充值，请稍候…');
 
             try {
@@ -550,19 +592,21 @@
                     const d = b.data || {};
                     flow.taskId = d.task_id || '';
                     const detail = d.result || 'SuperGrok 会员已到账，可前往 grok.com 查看。';
-                    showMsg('step3-result', 'success',
+                    showMsg('step4-result', 'success',
                         '<strong>✅ 充值成功！</strong><div style="margin-top:.4rem;font-size:.85rem;">' + detail + '</div>');
                     rechargeDone = true;
                     const btnText = document.getElementById('startRechargeBtnText');
                     if (btnText) btnText.textContent = '🔄 返回首页 · 重新兑换';
                     if (btn) btn.classList.add('btn-cta-pulse');
+                    const backBtn = document.getElementById('backToStep3Btn');
+                    if (backBtn) backBtn.style.display = 'none';
                     fetchStock();
                 } else {
-                    showMsg('step3-result', 'error', '❌ 充值失败：' +
+                    showMsg('step4-result', 'error', '❌ 充值失败：' +
                         (b.msg || b.message || b.error || ('错误码 ' + (b.code != null ? b.code : r.status))) + '。请联系客服。');
                 }
             } catch (err) {
-                showMsg('step3-result', 'error', '网络错误：' + err.message);
+                showMsg('step4-result', 'error', '网络错误：' + err.message);
             } finally {
                 setBtnLoading(btn, false);
             }
@@ -573,16 +617,18 @@
             rechargeDone = false;
             flow.cdk = ''; flow.grokUserId = ''; flow.taskId = '';
             const cc = document.getElementById('cardCode'); if (cc) cc.value = '';
-            const ui = document.getElementById('claudeUserId'); if (ui) ui.value = '';
-            clearMsg('step1-result'); clearMsg('step2-result'); clearMsg('step3-result');
-            ['cardInfo', 'bindCdk', 'bindUid'].forEach(function (id) {
+            const sess = document.getElementById('sessionJsonInput'); if (sess) sess.value = '';
+            clearMsg('step1-result'); clearMsg('step3-result'); clearMsg('step4-result');
+            ['bindCdk', 'bindUid'].forEach(function (id) {
                 const el = document.getElementById(id); if (el) el.textContent = '';
             });
-            // 恢复步骤3按钮原样
+            const hint = document.getElementById('extractedIdHint'); if (hint) { hint.style.display = 'none'; hint.textContent = ''; }
+            // 恢复第四步按钮原样
             const btnText = document.getElementById('startRechargeBtnText');
-            if (btnText) btnText.textContent = '🚀 立即激活 SuperGrok';
+            if (btnText) btnText.textContent = '🚀 立即充值';
             const startBtn = document.getElementById('startRechargeBtn');
             if (startBtn) { startBtn.classList.add('btn-cta-pulse'); setBtnLoading(startBtn, false); }
+            const backBtn = document.getElementById('backToStep3Btn'); if (backBtn) backBtn.style.display = '';
             goToStep(1);
             if (cc) { try { cc.focus(); } catch (e) {} }
         }
