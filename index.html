@@ -594,7 +594,7 @@
                 flow.grokUserId.slice(0, 8) + '… 充值,约需 1–2 分钟,请勿关闭页面…');
 
             try {
-                // 1) 发起充值（异步，返回 task_id）
+                // 1) 发起充值
                 const r = await apiFetch(API.redeem, {
                     method: 'POST',
                     body: JSON.stringify({
@@ -604,27 +604,29 @@
                     })
                 });
                 const b = r.body || {};
-                const d = b.data || b;
-                const taskId = d.task_id || d.id || (d.task && d.task.id);
+                const code = String(b.code || (b.data && b.data.code) || '').toUpperCase();
 
-                if (!r.ok || !taskId) {
+                // 「已预占 / 处理中」不是失败：卡密已进入充值队列，继续等待结果即可
+                const reserved = r.status === 409 || code === 'CDK_RESERVED' ||
+                    code === 'CDK_PROCESSING' || code === 'PROCESSING';
+
+                if (!r.ok && !reserved) {
+                    // 真正的失败（卡密无效 / 已被别人用 / 余额不足等）
                     showMsg('step4-result', 'error', '❌ 充值失败:' +
                         (b.message || b.error || b.msg || ('HTTP ' + r.status)) + '。请联系客服。');
                     return;
                 }
-                flow.taskId = taskId;
 
-                // 2) 轮询任务结果
-                const fin = await pollTask(taskId);
-                if (fin.timeout) {
-                    showMsg('step4-result', 'error',
-                        '⌛ 充值仍在处理中（超时未返回结果）。任务号:' + taskId +
-                        '。请稍后到 grok.com 查看,或联系客服核对。');
-                    return;
-                }
+                if (reserved) {
+                    showMsg('step4-result', 'info',
+                        '<span class="spinner-border spinner-border-sm me-2"></span>该卡密已在充值队列中,正在为你确认结果,请稍候…');
+                } 
+
+                // 2) 轮询 /cdk/info，等 used 变为 true = 到账成功
+                const fin = await pollRedeemResult(flow.cdk);
+
                 if (fin.ok) {
-                    const fd = fin.data || {};
-                    const detail = fd.result || fd.message || 'SuperGrok 会员已到账,可前往 grok.com 查看。';
+                    const detail = fin.detail || 'SuperGrok 会员已到账,可前往 grok.com 查看。';
                     showMsg('step4-result', 'success',
                         '<strong>✅ 充值成功!</strong><div style="margin-top:.4rem;font-size:.85rem;">' + detail + '</div>');
                     rechargeDone = true;
@@ -634,10 +636,13 @@
                     const backBtn = document.getElementById('backToStep3Btn');
                     if (backBtn) backBtn.style.display = 'none';
                     fetchStock();
+                } else if (fin.timeout) {
+                    showMsg('step4-result', 'error',
+                        '⌛ 充值仍在处理中（' + Math.round((fin.waited || 0) / 1000) + '秒内未确认到账）。' +
+                        '卡密 ' + flow.cdk.slice(0, 10) + '… 已进入队列,请稍后用上方「查询卡密」确认,或联系客服核对。');
                 } else {
-                    const fd = fin.data || {};
                     showMsg('step4-result', 'error', '❌ 充值失败:' +
-                        (fd.error || fd.message || fd.status || '未知错误') + '。请联系客服。');
+                        (fin.reason || '未知错误') + '。请联系客服。');
                 }
             } catch (err) {
                 showMsg('step4-result', 'error', '网络错误:' + err.message +
@@ -647,25 +652,29 @@
             }
         }
 
-        /* ---------- 轮询充值任务，直到成功/失败/超时 ---------- */
-        async function pollTask(taskId, opt) {
+        /* ---------- 轮询 /cdk/info，直到 used:true(成功) / 超时 ---------- */
+        async function pollRedeemResult(cdk, opt) {
             opt = opt || {};
             const interval = opt.interval || 4000;     // 每 4 秒查一次
             const timeout  = opt.timeout  || 300000;   // 最长 5 分钟
-            const DONE = ['success', 'succeeded', 'done', 'ok', 'completed', 'finished'];
-            const FAIL = ['failed', 'fail', 'error', 'cancelled', 'canceled', 'expired'];
             const start = Date.now();
             while (Date.now() - start < timeout) {
-                try {
-                    const r = await apiFetch(API.task + '?task_id=' + encodeURIComponent(taskId), { method: 'GET' });
-                    const d = (r.body && r.body.data) ? r.body.data : (r.body || {});
-                    const status = String(d.status || '').toLowerCase();
-                    if (DONE.includes(status)) return { ok: true, data: d };
-                    if (FAIL.includes(status)) return { ok: false, data: d };
-                } catch (e) { /* 单次失败忽略，继续轮询 */ }
                 await sleep(interval);
+                try {
+                    const r = await apiFetch(API.cdkInfo + '?cdk=' + encodeURIComponent(cdk), { method: 'GET' });
+                    const d = (r.body && r.body.data) ? r.body.data : null;
+                    if (d && d.used === true) {
+                        // 到账成功，尽量给出账号/到期信息
+                        let detail = 'SuperGrok 会员已到账,可前往 grok.com 查看。';
+                        const acc = d.binding && (d.binding.email || d.binding.account_id);
+                        if (acc) detail += '<br>账号:' + acc;
+                        const exp = d.binding && (d.binding.expires_date || d.expiresAt);
+                        if (exp) detail += '<br>到期:' + formatTime(exp);
+                        return { ok: true, detail: detail };
+                    }
+                } catch (e) { /* 单次失败忽略，继续轮询 */ }
             }
-            return { ok: false, timeout: true };
+            return { timeout: true, waited: Date.now() - start };
         }
 
         /* ---------- 重置流程：返回第一步，重新兑换 ---------- */
