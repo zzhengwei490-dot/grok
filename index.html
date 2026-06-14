@@ -384,24 +384,36 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/public/js/lang.js?v=20260524006"></script>
     <script>
-        // ===== 库存接口：仍走原 Cloudflare Worker（→ 6661231.xyz）=====
-        // 同域名部署时可改成 '' 走同源；本地 file:// 预览必须用完整 https 地址。
-        window.PROXY_BASE = window.PROXY_BASE || 'https://g.zlkjgptplus.org';
+        // ===================================================================
+        //  接口配置：CDK Reseller API （dlsapi.6661231.xyz）
+        // ===================================================================
+        //  两种用法，二选一：
+        //
+        //  【A · 直连（开箱即用，但不安全）】
+        //      API_BASE = 'https://dlsapi.6661231.xyz/api/v1'
+        //      API_KEY  = 'sk_...'   ← 密钥写在前端，任何访客查看源码即可窃取！
+        //      且浏览器直连很可能被上游 CORS 拦截。仅适合自用/内网/快速测试。
+        //
+        //  【B · 走 Worker（推荐，密钥不进前端）】
+        //      把 API_BASE 改成你的 Worker 地址，例如：
+        //      API_BASE = 'https://g.zlkjgptplus.org/api/v1'
+        //      并把 API_KEY 置空 ''（密钥由 Worker 服务端注入，见 supergrok-worker.js）
+        // ===================================================================
+        window.API_BASE = window.API_BASE || 'https://dlsapi.6661231.xyz/api/v1';
+
+        // ⚠️ 安全警告：以下密钥写在前端会被任何人窃取。走 Worker 模式时请改成 ''。
+        window.API_KEY  = (typeof window.API_KEY === 'string')
+            ? window.API_KEY
+            : 'sk_xfnaoiekkamhynxfcec4j8ee0w9bquo0s4h6ed8dbbpfc17i';
+
         const API = {
-            stock:    window.PROXY_BASE + '/external/grok/redeem/stock',
+            stock:    window.API_BASE + '/grok/stock',       // GET  实时库存
+            cdkInfo:  window.API_BASE + '/cdk/info',         // GET  ?cdk=  查卡密详情
+            cdkBatch: window.API_BASE + '/cdk/info-batch',   // POST {cdks:[...]} 批量查询
+            redeem:   window.API_BASE + '/grok/redeem',      // POST 发起充值（异步，返回 task_id）
+            task:     window.API_BASE + '/grok/task',        // GET  ?task_id=  轮询任务结果
         };
         const STOCK_URL = API.stock;
-
-        // ===== 卡密查询 / 验证 / 激活：走新后端平台 =====
-        // 抓包实际命中的接口域名是 codexapilink.com（jzvip6688.org 只是前端站点）。
-        window.NEW_API_BASE = window.NEW_API_BASE || 'https://codexapilink.com/gptchongqudao1';
-        const PRODUCT = 'grok';
-        const NEW_API = {
-            // 查询卡密 + 验证卡密 共用 action=query
-            query:  window.NEW_API_BASE + '/proxy.php?action=query',
-            // 激活/充值
-            redeem: window.NEW_API_BASE + '/proxy.php?action=redeem',
-        };
 
         // 跨步骤保存的状态
         const flow = { cdk: '', grokUserId: '', taskId: '' };
@@ -421,15 +433,21 @@
             icon.textContent = section.style.display === 'none' ? '▼' : '▲';
         }
 
-        /* ---------- 通用：fetch JSON ---------- */
+        /* ---------- 通用：fetch JSON（自动带上 Bearer 鉴权） ---------- */
         async function apiFetch(url, options) {
-            const res = await fetch(url, Object.assign({
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
-            }, options || {}));
+            const opts = Object.assign({}, options || {});
+            const headers = Object.assign({ 'Accept': 'application/json' }, opts.headers || {});
+            // 直连模式：带上密钥。走 Worker 模式（API_KEY 为空）时不带，由 Worker 注入。
+            if (window.API_KEY) headers['Authorization'] = 'Bearer ' + window.API_KEY;
+            if (opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+            opts.headers = headers;
+            const res = await fetch(url, opts);
             let body = null;
             try { body = await res.json(); } catch (e) { /* 非 JSON */ }
             return { ok: res.ok, status: res.status, body };
         }
+
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
         /* ---------- 步骤指示器 / 卡片切换 ---------- */
         function goToStep(n) {
@@ -475,28 +493,27 @@
 
                 setBtnLoading(btn, true);
                 try {
-                    const r = await apiFetch(NEW_API.query, {
-                        method: 'POST',
-                        body: JSON.stringify({ code: cdk, product: PRODUCT })
-                    });
-                    const b = r.body || {};
-                    if (!r.ok || b.code !== 0) {
-                        showMsg('step1-result', 'error', '验证失败：' +
-                            (b.msg || b.message || b.error || ('错误码 ' + (b.code != null ? b.code : r.status))));
+                    const r = await apiFetch(API.cdkInfo + '?cdk=' + encodeURIComponent(cdk), { method: 'GET' });
+
+                    if (r.status === 404) { showMsg('step1-result', 'error', '该充值码不存在,请检查后重试。'); return; }
+                    if (r.status === 400) { showMsg('step1-result', 'error', '充值码格式不正确。'); return; }
+
+                    const d = (r.body && r.body.data) ? r.body.data : null;
+                    if (!r.ok || !d) {
+                        const b = r.body || {};
+                        showMsg('step1-result', 'error', '验证失败:' +
+                            (b.message || b.error || b.msg || ('HTTP ' + r.status)));
                         return;
                     }
-                    const d = b.data || {};
-                    // 已使用判断（status / use_status 为 1，或状态文案含“已使用”）
-                    const used = d.use_status === 1 || d.status === 1 ||
-                        (typeof d.status_text === 'string' && d.status_text.indexOf('已使用') >= 0);
-                    if (used) {
-                        const t = pickField(d, USE_TIME_KEYS);
-                        const u = pickField(d, USE_USER_KEYS);
+
+                    // 已使用判断：新接口字段为 used(boolean) / usedAt
+                    if (d.used === true) {
                         let extra = '';
-                        if (t) extra += '，使用时间：' + t;
-                        if (u) extra += '，用户：' + u;
+                        if (d.usedAt) extra += ',使用时间:' + formatTime(d.usedAt);
+                        const acc = d.binding && (d.binding.email || d.binding.account_id);
+                        if (acc) extra += ',账号:' + acc;
                         showMsg('step1-result', 'error',
-                            '该充值码已被使用（' + (d.status_text || '已使用') + '）' + extra + '，无法重复充值。');
+                            '该充值码已被使用' + extra + ',无法重复充值。');
                         return;
                     }
 
@@ -504,7 +521,8 @@
                     flow.cdk = cdk;
                     goToStep(2);
                 } catch (err) {
-                    showMsg('step1-result', 'error', '网络错误：' + err.message);
+                    showMsg('step1-result', 'error', '网络错误:' + err.message +
+                        '（若为 CORS 报错,说明浏览器无法直连该接口,请改用 Worker 模式）');
                 } finally {
                     setBtnLoading(btn, false);
                 }
@@ -554,7 +572,7 @@
             return m ? m[0] : '';
         }
 
-        // 发起充值（新后端 action=redeem，同步返回结果）
+        // 发起充值（POST /grok/redeem 异步返回 task_id，再轮询 /grok/task 取结果）
         async function runRedeem() {
             const btn = document.getElementById('startRechargeBtn');
             const wrap = document.getElementById('step4');
@@ -573,27 +591,42 @@
             btn.classList.remove('btn-cta-pulse');
 
             showMsg('step4-result', 'info', '<span class="spinner-border spinner-border-sm me-2"></span>正在为账号 ' +
-                flow.grokUserId.slice(0, 8) + '… 充值，请稍候…');
+                flow.grokUserId.slice(0, 8) + '… 充值,约需 1–2 分钟,请勿关闭页面…');
 
             try {
-                const r = await apiFetch(NEW_API.redeem, {
+                // 1) 发起充值（异步，返回 task_id）
+                const r = await apiFetch(API.redeem, {
                     method: 'POST',
                     body: JSON.stringify({
-                        code: flow.cdk,
-                        force: 0,
+                        cdk: flow.cdk,
                         grok_user_id: flow.grokUserId,
-                        product: PRODUCT,
-                        session_info: flow.grokUserId,
-                        target: flow.grokUserId
+                        force: false
                     })
                 });
                 const b = r.body || {};
-                if (r.ok && b.code === 0) {
-                    const d = b.data || {};
-                    flow.taskId = d.task_id || '';
-                    const detail = d.result || 'SuperGrok 会员已到账，可前往 grok.com 查看。';
+                const d = b.data || b;
+                const taskId = d.task_id || d.id || (d.task && d.task.id);
+
+                if (!r.ok || !taskId) {
+                    showMsg('step4-result', 'error', '❌ 充值失败:' +
+                        (b.message || b.error || b.msg || ('HTTP ' + r.status)) + '。请联系客服。');
+                    return;
+                }
+                flow.taskId = taskId;
+
+                // 2) 轮询任务结果
+                const fin = await pollTask(taskId);
+                if (fin.timeout) {
+                    showMsg('step4-result', 'error',
+                        '⌛ 充值仍在处理中（超时未返回结果）。任务号:' + taskId +
+                        '。请稍后到 grok.com 查看,或联系客服核对。');
+                    return;
+                }
+                if (fin.ok) {
+                    const fd = fin.data || {};
+                    const detail = fd.result || fd.message || 'SuperGrok 会员已到账,可前往 grok.com 查看。';
                     showMsg('step4-result', 'success',
-                        '<strong>✅ 充值成功！</strong><div style="margin-top:.4rem;font-size:.85rem;">' + detail + '</div>');
+                        '<strong>✅ 充值成功!</strong><div style="margin-top:.4rem;font-size:.85rem;">' + detail + '</div>');
                     rechargeDone = true;
                     const btnText = document.getElementById('startRechargeBtnText');
                     if (btnText) btnText.textContent = '🔄 返回首页 · 重新兑换';
@@ -602,14 +635,37 @@
                     if (backBtn) backBtn.style.display = 'none';
                     fetchStock();
                 } else {
-                    showMsg('step4-result', 'error', '❌ 充值失败：' +
-                        (b.msg || b.message || b.error || ('错误码 ' + (b.code != null ? b.code : r.status))) + '。请联系客服。');
+                    const fd = fin.data || {};
+                    showMsg('step4-result', 'error', '❌ 充值失败:' +
+                        (fd.error || fd.message || fd.status || '未知错误') + '。请联系客服。');
                 }
             } catch (err) {
-                showMsg('step4-result', 'error', '网络错误：' + err.message);
+                showMsg('step4-result', 'error', '网络错误:' + err.message +
+                    '（若为 CORS 报错,请改用 Worker 模式）');
             } finally {
                 setBtnLoading(btn, false);
             }
+        }
+
+        /* ---------- 轮询充值任务，直到成功/失败/超时 ---------- */
+        async function pollTask(taskId, opt) {
+            opt = opt || {};
+            const interval = opt.interval || 4000;     // 每 4 秒查一次
+            const timeout  = opt.timeout  || 300000;   // 最长 5 分钟
+            const DONE = ['success', 'succeeded', 'done', 'ok', 'completed', 'finished'];
+            const FAIL = ['failed', 'fail', 'error', 'cancelled', 'canceled', 'expired'];
+            const start = Date.now();
+            while (Date.now() - start < timeout) {
+                try {
+                    const r = await apiFetch(API.task + '?task_id=' + encodeURIComponent(taskId), { method: 'GET' });
+                    const d = (r.body && r.body.data) ? r.body.data : (r.body || {});
+                    const status = String(d.status || '').toLowerCase();
+                    if (DONE.includes(status)) return { ok: true, data: d };
+                    if (FAIL.includes(status)) return { ok: false, data: d };
+                } catch (e) { /* 单次失败忽略，继续轮询 */ }
+                await sleep(interval);
+            }
+            return { ok: false, timeout: true };
         }
 
         /* ---------- 重置流程：返回第一步，重新兑换 ---------- */
@@ -663,29 +719,37 @@
             }
             return '';
         }
-        const USE_TIME_KEYS = ['use_time', 'used_at', 'used_time', 'bind_time', 'redeem_time', 'activated_at', 'activate_time', 'update_time', 'used_at_text'];
-        const USE_USER_KEYS = ['user_id', 'grok_user_id', 'target', 'account_id', 'use_user', 'used_user_id', 'bind_user_id', 'used_by'];
+        const USE_TIME_KEYS = ['usedAt', 'used_at', 'use_time', 'used_time', 'redeem_time'];
+        const USE_USER_KEYS = ['account_id', 'email', 'grok_user_id', 'user_id', 'target'];
 
-        // 把一条查询响应格式化成展示文本
+        // ISO 时间 → 本地可读；非时间字符串原样返回
+        function formatTime(v) {
+            if (!v) return '';
+            const d = new Date(v);
+            if (isNaN(d.getTime())) return String(v);
+            const p = (n) => String(n).padStart(2, '0');
+            return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+                ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+        }
+
+        // 把一条 /cdk/info 响应格式化成展示文本
         function formatCardStatus(code, r) {
-            const b = r.body || {};
-            // 非 0 / 无 data → 视为不存在或错误
-            if (!r.ok || b.code !== 0 || !b.data) {
-                return code + ': ⚠️ ' + (b.msg || b.message || b.error || '卡密不存在');
+            if (r.status === 404) return code + ': ⚠️ 卡密不存在';
+            if (r.status === 400) return code + ': ⚠️ 格式不正确';
+            const d = (r.body && r.body.data) ? r.body.data : null;
+            if (!r.ok || !d) {
+                const b = r.body || {};
+                return code + ': ⚠️ ' + (b.message || b.error || b.msg || '查询失败');
             }
-            const d = b.data;
-            const label = d.code_plain || code;
-            const used = d.use_status === 1 || d.status === 1 ||
-                (typeof d.status_text === 'string' && d.status_text.indexOf('已使用') >= 0);
-            if (!used) {
-                return label + ': ✅ ' + (d.status_text || '未使用');
+            if (d.used !== true) {
+                return code + ': ✅ 未使用';
             }
-            // 已使用：尽量带上使用时间和用户 ID
+            // 已使用：尽量带上使用时间和绑定账号
+            let line = code + ': ❌ 已使用';
             const t = pickField(d, USE_TIME_KEYS);
-            const u = pickField(d, USE_USER_KEYS);
-            let line = label + ': ❌ ' + (d.status_text || '已使用');
-            if (t) line += '（' + t + '）';
-            if (u) line += ' 用户: ' + u;
+            if (t) line += '（' + formatTime(t) + '）';
+            const u = (d.binding && (d.binding.email || d.binding.account_id)) || pickField(d, USE_USER_KEYS);
+            if (u) line += ' 账号: ' + u;
             return line;
         }
 
@@ -703,10 +767,7 @@
                 const lines = [];
                 for (const code of codes) {
                     try {
-                        const r = await apiFetch(NEW_API.query, {
-                            method: 'POST',
-                            body: JSON.stringify({ code: code, product: PRODUCT })
-                        });
+                        const r = await apiFetch(API.cdkInfo + '?cdk=' + encodeURIComponent(code), { method: 'GET' });
                         lines.push(formatCardStatus(code, r));
                     } catch (e) {
                         lines.push(code + ': ⚠️ 网络错误');
@@ -726,11 +787,25 @@
             const bar = document.getElementById('stockBar');
             card.classList.remove('is-loading-skeleton', 'is-low', 'is-out');
             a.textContent = avail;
-            t.textContent = total;
-            const pct = total > 0 ? Math.max(0, Math.min(100, (avail / total) * 100)) : 0;
+            const hasTotal = (typeof total === 'number' && total > 0);
+            t.textContent = hasTotal ? total : '—';
+            // 有 total 时按比例显示进度条；无 total 时：有货=满，无货=空
+            const pct = hasTotal ? Math.max(0, Math.min(100, (avail / total) * 100))
+                                 : (avail > 0 ? 100 : 0);
             bar.style.width = pct + '%';
             if (avail <= 0) card.classList.add('is-out');
-            else if (pct <= 15) card.classList.add('is-low');
+            else if (hasTotal && pct <= 15) card.classList.add('is-low');
+        }
+
+        // 从对象里按候选字段名取第一个「数字」
+        function firstNum(obj, keys) {
+            if (!obj) return null;
+            for (const k of keys) {
+                const v = obj[k];
+                if (typeof v === 'number') return v;
+                if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) return Number(v);
+            }
+            return null;
         }
 
         async function fetchStock() {
@@ -738,15 +813,20 @@
             const a = document.getElementById('stockAvail');
             btn.classList.add('spinning');
             try {
-                const res = await fetch(STOCK_URL, { headers: { 'Accept': 'application/json' } });
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                const json = await res.json();
-                const d = (json && json.data) ? json.data : {};
-                if (typeof d.available === 'number' && typeof d.total === 'number') {
-                    renderStock(d.available, d.total);
-                } else {
+                const r = await apiFetch(STOCK_URL, { method: 'GET' });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const root = r.body || {};
+                const d = (root && typeof root.data === 'object' && root.data) ? root.data : root;
+                // 兼容多种可能字段名（接口文档未给出库存返回示例）
+                let avail = firstNum(d, ['available', 'avail', 'remaining', 'remain', 'stock', 'left', 'count', 'quantity']);
+                let total = firstNum(d, ['total', 'capacity', 'max', 'quota', 'sum']);
+                // 顶层是纯数字的情况
+                if (avail == null && typeof root === 'number') avail = root;
+                if (avail == null) {
+                    console.warn('库存返回结构未识别,原始响应:', root);
                     throw new Error('返回格式异常');
                 }
+                renderStock(avail, total);
             } catch (err) {
                 console.warn('库存获取失败:', err, '请求地址:', STOCK_URL);
                 a.textContent = '获取失败';
